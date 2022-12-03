@@ -230,7 +230,7 @@ class Product {
 };
 
 class Buyer {
-    private:
+    protected:
         char name[30];
         double budget;
         int numberOfProducts;
@@ -238,7 +238,42 @@ class Buyer {
         // HAS-A
         Product *products;
 
+        void performCopying(const Buyer& buyer) {
+            strcpy(this->name, buyer.name);
+            this->budget = buyer.budget;
+            this->numberOfProducts = buyer.numberOfProducts;
+            this->products = new Product[buyer.maxNumberOfProducts];
+            if(this->products == NULL) {
+                cout << "Memory allocation error. products was not properly initialized.";
+                exit(1);
+            }
+
+            for(int i = 0; i < this->numberOfProducts; ++i) {
+                this->products[i] = buyer.products[i];
+            }
+        }
+
+        void removeLastProduct() {
+            Product *temp = products;
+            --numberOfProducts;
+            products = new Product[numberOfProducts];
+            if(products == NULL) {
+                cout << "The resizing for products did not go well.";
+                exit(1);
+            }
+
+            for(int i = 0; i < numberOfProducts; ++i) {
+                products[i] = temp[i];
+            }
+
+            delete[] temp;
+        }
+
     public:
+        Buyer() {
+
+        }
+
         Buyer(
             const char name[],
             double budget
@@ -246,7 +281,7 @@ class Buyer {
             strcpy(this->name, name);
             this->budget = budget;
             numberOfProducts = 0;
-            maxNumberOfProducts = 1;
+            maxNumberOfProducts = 10;
             products = new Product[maxNumberOfProducts];
             if(products == NULL) {
                 cout << "Memory allocation error. products was not properly initialized.";
@@ -254,6 +289,43 @@ class Buyer {
             }
         }
 
+        Buyer(const Buyer& buyer){
+            performCopying(buyer);
+        }
+
+        Buyer& operator=(const Buyer& buyer){
+            performCopying(buyer);
+            return *this;
+        }
+
+        char *getName(){
+            return this->name;
+        }
+
+        double getBudget(){
+            return this->budget;
+        }
+
+        int getNumberOfProducts() {
+            return this->numberOfProducts;
+        }
+        
+        int getMaxNumberOfProducts() {
+            return this->maxNumberOfProducts;
+        }
+    
+        Product *getProducts(){
+            return this->products;
+        }
+
+        void setBudget(double budget){
+            if(budget < 0){
+                cout << "The budget must be greater than zero." << endl;
+                exit(1);
+            }
+            this->budget = budget;
+        }
+ 
         double calculateTotalPrice() {
             double sum = 0;
             for(int i = 0; i < numberOfProducts; ++i) {
@@ -317,6 +389,40 @@ class Buyer {
 
             cout << "Deleted all the products successfully." << endl;
             return 1;
+        }   
+
+        Buyer& operator+(double newBudget) {
+            this->budget += newBudget;
+            return *this;
+        }
+
+        Product operator[](int index) {
+            return products[index];
+        }
+
+        bool operator==(Buyer& buyer){
+            if(this->budget == buyer.budget)
+                return true;
+            else return false;
+        }
+
+         operator double (){
+           return calculateTotalPrice();
+        }
+
+        bool operator <(const Buyer& buyer){
+            return this->numberOfProducts < buyer.numberOfProducts;
+        }
+
+        Buyer& operator--() {
+            removeLastProduct();
+            return *this;            
+        }
+
+        Buyer operator--(int) {
+            Buyer buyer = *this;
+            --(*this);
+            return buyer;
         }
 
         friend ostream &operator<<(ostream& out, const Buyer& buyer) {
@@ -335,9 +441,99 @@ class Buyer {
             return out;
         }
 
+        friend istream& operator>>(istream& in, Buyer& buyer) {
+            cout << "Introduce the name of the buyer: ";
+            in>>buyer.name;
+            cout << "Introduce the budget: ";
+            in>>buyer.budget;
+            
+            return in;            
+        }
+
         ~Buyer() {
             delete[] products;
            // cout << "A buyer has been destroyed." << endl;
+        }
+};
+
+class EmployedBuyer : public Buyer {
+    private:
+        int discountForShopping;
+    
+    public: 
+        EmployedBuyer() {
+
+        }
+
+        EmployedBuyer(
+            const char name[],
+            double budget,
+            int discountForShopping
+        ) : Buyer(name, budget) {
+            this->discountForShopping = discountForShopping;
+        }
+
+        EmployedBuyer(const EmployedBuyer& buyer) : Buyer(buyer) {
+            discountForShopping = buyer.discountForShopping;
+        }
+
+        EmployedBuyer& operator=(const EmployedBuyer& employedBuyer) {
+            this->performCopying(employedBuyer);
+            discountForShopping = employedBuyer.discountForShopping;
+            return *this;
+        }
+
+        EmployedBuyer& operator--() {
+            this->removeLastProduct();
+            return *this;            
+        }
+
+        EmployedBuyer operator--(int) {
+            EmployedBuyer buyer = *this;
+            if(numberOfProducts == 0) {
+                return buyer;
+            }
+
+            --(*this);
+            return buyer;
+        }
+
+        int getDiscountForShopping() {
+            return discountForShopping;
+        }
+
+        // Overriding
+        double calculateTotalPrice() {
+            double totalPriceWithoutDiscount = Buyer::calculateTotalPrice();
+            return totalPriceWithoutDiscount * (1.00 - (double)discountForShopping / 100.0);
+        }
+
+        friend ostream &operator<<(ostream& out, const EmployedBuyer& employedBuyer) {
+            out << "Employed buyer's name: " << employedBuyer.name << endl;
+            out << "Employed buyer's budget: " << employedBuyer.budget << endl;
+            out << "Employed buyer's discout for shopping: " << employedBuyer.discountForShopping << "%." << endl;
+            out << "Number of products: " << employedBuyer.numberOfProducts << endl;
+            if(employedBuyer.numberOfProducts != 0) {
+                out << "The products are: " << endl;
+            }
+            
+            for(int i = 0; i < employedBuyer.numberOfProducts; ++i) {
+                cout << "Product " << i + 1 << ": " << employedBuyer.products[i].getName() << " with price " 
+                    << (double)employedBuyer.products[i] << "." << endl;
+            }
+
+            return out;
+        }
+
+        friend istream& operator>>(istream& in, EmployedBuyer& employedBuyer) {
+            cout << "Introduce the name of the employed buyer: ";
+            in >> employedBuyer.name;
+            cout << "Introduce the budget: ";
+            in >> employedBuyer.budget;
+            cout << "Introduce the discount for shopping: ";
+            in >> employedBuyer.discountForShopping;
+            
+            return in;            
         }
 };
 
@@ -407,7 +603,15 @@ int main(void) {
     buyer.addProduct(product2, day);
     buyer.addProduct(product3, day);
     cout << buyer << endl;
-    //cout << !buyer << endl;
+    // cout << buyer.getNumberOfProducts() << endl;
+    // cout << buyer.getBudget() << endl;
+    // cout << buyer.getName() << endl;
+    // Product *products = buyer.getProducts();
+    // for(int i = 0; i < buyer.getNumberOfProducts(); ++i) {
+    //     cout << products[i].getName() << endl;
+    // }
+
+    cout << !buyer << endl;
     cout << buyer << endl;
     buyer.pay();
     cout << buyer << endl;
@@ -415,5 +619,51 @@ int main(void) {
     buyer.addProduct(product2, day);
     cout << buyer << endl;
     buyer.pay();
+ 
+    cout << "New budget: " << buyer.getBudget() + 100 <<endl;
+    Buyer buyer2("Ana Toma", 544.8);
+    cout << buyer2 << endl;
 
+    // if(buyer == buyer2) 
+    //     cout << "The  buyer 1 and 2 have the same budget." << endl;
+    // else cout << "The buyer 1 and 2 have different budgets." << endl;
+    buyer2.addProduct(product1, day);
+    buyer2.addProduct(product2, day);
+    cout << (double)buyer2 << endl;
+    
+    // if(buyer < buyer2)
+    //     cout << "The buyer 1 has less products than the buyer 2." << endl;
+    // else cout << "The buyer 1 has more products than the buyer 2." << endl;
+   // cout << "----------------------------" << endl;
+    Buyer buyer3 = buyer2--;
+    cout << buyer2 << endl;
+    cout << buyer3 << endl;
+    cout << buyer3[1] << endl;
+
+    cout << "------------------------" << endl;
+    EmployedBuyer employedBuyer1("Victor Nani", 1000.00, 10);
+    cout << employedBuyer1 << endl;
+    
+    int p1[] = {10, 0, 10, 0, 10, 0, 10};
+    Product pr1("Korona", 10, p1);
+
+    int p2[] = {0, 0, 5, 0, 0, 0, 0};
+    Product pr2("Sgusheonci", 20, p2);
+
+    employedBuyer1.addProduct(pr1, 0);
+    employedBuyer1.addProduct(pr2, 2);
+    //employedBuyer1.pay();
+    EmployedBuyer employedBuyer2(employedBuyer1);
+    EmployedBuyer employedBuyer3;
+    employedBuyer3 = employedBuyer1;
+
+    cout << employedBuyer1 << endl;
+    cout << employedBuyer2 << endl;
+    cout << employedBuyer3 << endl;
+
+    EmployedBuyer employedBuyer4 = employedBuyer3--;
+    cout << employedBuyer3 << endl;
+    cout << employedBuyer4 << endl;
+
+    cout << employedBuyer4[0] << endl;
 }
