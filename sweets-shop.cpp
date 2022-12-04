@@ -16,6 +16,22 @@ class Product {
         Product() :id(Product::instances++) { }
 
         Product(
+            const char *name, 
+            double price) : id(Product::instances++) {
+            this->name = new char[strlen(name) + 1];
+            if(this->name == NULL) {
+                cout << "Memory allocation error on Product() constructor, this->name field." << endl;
+                exit(1);
+            }
+
+            strcpy(this->name, name);
+            this->price = price;
+            for (int i = 0; i < 7; ++i) {
+                promotions[i] = 0;
+            }
+        }
+
+        Product(
             const char *name,
             double price,
             int promotions[]
@@ -168,10 +184,21 @@ class Product {
             return counter1 == counter2;
         }
 
-        double calculateDiscount(int day) {
+        double calculatePrice(int day) {
             int promotion = promotions[day];
             double discount = ((double)promotion / 100.0) * price;
             return price - discount;
+        }
+
+        bool hasDiscount() {
+            int counter = 0;
+            for (int i = 0; i < 7; ++i) {
+                if (promotions[i] > 0) {
+                    ++counter;
+                }
+            }
+
+            return counter != 0;
         }
 
         friend ostream &operator<<(ostream& out, const Product& product) {
@@ -274,6 +301,18 @@ class Buyer {
 
         }
 
+        Buyer(const char name[]) {
+            strcpy(this->name, name);
+            budget = 0;
+            numberOfProducts = 0;
+            maxNumberOfProducts = 10;
+            products = new Product[maxNumberOfProducts];
+            if(products == NULL) {
+                cout << "Memory allocation error. products was not properly initialized.";
+                exit(1);
+            }
+        }
+
         Buyer(
             const char name[],
             double budget
@@ -345,7 +384,7 @@ class Buyer {
             }
 
             double totalPrice = calculateTotalPrice();
-            double newProductPrice = product.calculateDiscount(day);
+            double newProductPrice = product.calculatePrice(day);
             if(totalPrice + newProductPrice > budget) {
                 cout << "The product " << product.getName() << " is too expensive for your budget." << endl;
                 return;
@@ -465,6 +504,10 @@ class EmployedBuyer : public Buyer {
 
         }
 
+        EmployedBuyer(const char name[]) : Buyer(name) {
+
+        }
+
         EmployedBuyer(
             const char name[],
             double budget,
@@ -534,6 +577,154 @@ class EmployedBuyer : public Buyer {
             in >> employedBuyer.discountForShopping;
             
             return in;            
+        }
+};
+
+class CashRegister {
+    private:
+        char name[30];
+        bool isActive;
+        int cashRegisterCapacity;
+        int currentServedBuyers;
+        Buyer *buyers;
+
+        void performCopying(const CashRegister& cashRegister) {
+            strcpy(name, cashRegister.name);
+            isActive = cashRegister.isActive;
+            currentServedBuyers = cashRegister.currentServedBuyers;
+            cashRegisterCapacity = cashRegister.cashRegisterCapacity;
+            buyers = new Buyer[cashRegisterCapacity];
+            if (buyers == NULL) {
+                cout << "Memory allocation error. buyers was not properly initialized." << endl;
+                exit(1);
+            }
+
+            for (int i = 0; i < currentServedBuyers; ++i) {
+                buyers[i] = cashRegister.buyers[i];
+            }
+        }
+
+    public:
+        CashRegister(const char name[]) {
+            strcpy(this->name, name);
+            isActive = 1;
+            currentServedBuyers = 0;
+            cashRegisterCapacity = 5;
+            buyers = new Buyer[cashRegisterCapacity];
+            if (buyers == NULL) {
+                cout << "Memory allocation error. buyers was not properly initialized." << endl;
+                exit(1);
+            }
+        }
+
+        CashRegister(
+            const char name[],
+            int cashRegisterCapacity
+        ) {
+            strcpy(this->name, name);
+            isActive = 1;
+            currentServedBuyers = 0;
+            this->cashRegisterCapacity = cashRegisterCapacity;
+            buyers = new Buyer[cashRegisterCapacity];
+            if (buyers == NULL) {
+                cout << "Memory allocation error. buyers was not properly initialized." << endl;
+                exit(1);
+            }
+        }
+
+        CashRegister(const CashRegister& cashRegister) {
+            performCopying(cashRegister);
+        }
+
+        CashRegister& operator=(const CashRegister& cashRegister) {
+            performCopying(cashRegister);
+            return *this;
+        }
+
+        void setIsActive(bool isActive) {
+            if (currentServedBuyers == 0) {
+                this->isActive = isActive;
+            }
+        }
+
+        void setCashRegisterCapacity(int cashRegisterCapacity) {
+            if(cashRegisterCapacity < this->cashRegisterCapacity) {
+                if (currentServedBuyers == 0) {
+                    this->cashRegisterCapacity = cashRegisterCapacity;
+                    buyers = new Buyer[cashRegisterCapacity];
+                    if (buyers == NULL) {
+                        cout << "Memory allocation error. buyers was not properly initialized." << endl;
+                        exit(1);
+                    }
+                }
+            } else {
+                Buyer *temp = buyers;
+                buyers = new Buyer[cashRegisterCapacity];
+                this->cashRegisterCapacity = cashRegisterCapacity;
+                if (buyers == NULL) {
+                    cout << "Memory allocation error. buyers was not properly initialized." << endl;
+                    exit(1);
+                }
+
+                for (int i = 0; i < currentServedBuyers; ++i) {
+                    buyers[i] = temp[i];
+                }
+
+                delete[] temp;
+            }
+        }
+
+        void addBuyer(Buyer buyer) {
+            if (currentServedBuyers == cashRegisterCapacity) {
+                return;
+            }
+
+            buyers[currentServedBuyers] = buyer;
+            ++currentServedBuyers;
+        }
+
+        void removeBuyer() {
+            if (currentServedBuyers == 0) {
+                return;
+            }
+
+            for (int i = 1; i < currentServedBuyers; ++i) {
+                buyers[i - 1] = buyers[i];
+            }
+            
+            --currentServedBuyers;
+        }
+
+        bool getIsActive() {
+            return isActive;
+        }
+
+        int getCashRegisterCapacity() {
+            return cashRegisterCapacity;
+        }
+
+        int getCurrentServedBuyers() {
+            return currentServedBuyers;
+        }
+
+        friend ostream &operator<<(ostream& out, const CashRegister& cashRegister) {
+            if (cashRegister.isActive) {
+                out << "The " << cashRegister.name << " is active and has a capacity of " << cashRegister.cashRegisterCapacity << " buyers." 
+                    << " Currently, there are " << cashRegister.currentServedBuyers << " buyers being served." << endl;
+            } else {
+                out << "The " << cashRegister.name << " is inactive and has a capacity of " << cashRegister.cashRegisterCapacity << " buyers." 
+                    << " Currently, there are " << cashRegister.currentServedBuyers << " buyers being served." << endl;
+            }
+
+            for (int i = 0; i < cashRegister.currentServedBuyers; ++i) {
+                cout << cashRegister.buyers[i] << endl;
+            }
+
+            return out;
+        }
+
+        ~CashRegister() {
+            delete[] buyers;
         }
 };
 
@@ -618,7 +809,7 @@ int main(void) {
     buyer.addProduct(product1, day);
     buyer.addProduct(product2, day);
     cout << buyer << endl;
-    buyer.pay();
+    //buyer.pay();
  
     cout << "New budget: " << buyer.getBudget() + 100 <<endl;
     Buyer buyer2("Ana Toma", 544.8);
@@ -645,10 +836,10 @@ int main(void) {
     cout << employedBuyer1 << endl;
     
     int p1[] = {10, 0, 10, 0, 10, 0, 10};
-    Product pr1("Korona", 10, p1);
+    Product pr1("Mars", 10, p1);
 
     int p2[] = {0, 0, 5, 0, 0, 0, 0};
-    Product pr2("Sgusheonci", 20, p2);
+    Product pr2("Choco Duo", 20, p2);
 
     employedBuyer1.addProduct(pr1, 0);
     employedBuyer1.addProduct(pr2, 2);
@@ -666,4 +857,38 @@ int main(void) {
     cout << employedBuyer4 << endl;
 
     cout << employedBuyer4[0] << endl;
+
+    cout << product1.hasDiscount() << endl;
+
+    Buyer b("Aurel Vlaicu");
+    b.setBudget(10.50);
+    cout << b << endl;
+
+    EmployedBuyer eb("Henri Coanda");
+    eb.setBudget(11.11);
+    cout << eb << endl;
+
+    Product p("Twix", 50.00);
+    cout << p << endl;
+    int pr[] = {1, 2, 3, 4, 5, 6, 7};
+    cout << p.hasDiscount() << endl;
+    cout << p.calculatePrice(5) << endl;
+
+    // CashRegister c1("Cash Register 1");
+    CashRegister c2("Cash Register 2", 3);
+    // c2.setCashRegisterCapacity(12);
+    // c2.addBuyer(buyer);
+    // cout << c2 << endl;
+    // CashRegister c3(c2);
+    // cout << c3 << endl;
+    // CashRegister c4("asdasd");
+    // c4 = c3;
+    // cout << c3 << endl;
+    
+    c2.addBuyer(buyer);
+    c2.addBuyer(buyer2);
+    c2.addBuyer(buyer3);
+    c2.addBuyer(buyer);
+    cout << c2 << endl;
+
 }
