@@ -54,7 +54,7 @@ class Product {
             }
         }
 
-        Product(const Product& product) :id(Product::instances++) {
+        Product(const Product& product) :id(product.id) {
             this->setPrice(product.price);
             this->setName(product.name);
             this->setPromotions(product.promotions, 7);
@@ -92,9 +92,9 @@ class Product {
             this->price = price;
         }
 
-        void setName(const char *name) {
-            if(strlen(name) < 5) {
-                cout << "The name length of the product must contain at least 5 characters." << endl;
+        void setName(const char name[]) {
+            if(strlen(name) == 0) {
+                cout << "The name of the product is missing." << endl;
             }
 
             this->name = new char[strlen(name) + 1];
@@ -170,18 +170,11 @@ class Product {
         }
 
         bool operator ==(const Product& product){
-            int counter1 = 0;
-            int counter2 = 0;
-            for(int i = 0; i < 7; ++i){
-                if(promotions[i] != 0)
-                    counter1++;
-            }
-            for(int i = 0; i < 7; ++i){
-                if(product.promotions[i]!= 0)
-                    counter2++;
-            }
+            return strcmp(this->name, product.name) == 0 && this->price == product.price;
+        }
 
-            return counter1 == counter2;
+        bool operator!=(const Product& product) {
+            return !(strcmp(this->name, product.name) == 0 && this->price == product.price);
         }
 
         double calculatePrice(int day) {
@@ -263,7 +256,7 @@ class Buyer {
         int numberOfProducts;
         int maxNumberOfProducts;
         // HAS-A
-        Product *products;
+        Product *products = NULL;
 
         void performCopying(const Buyer& buyer) {
             strcpy(this->name, buyer.name);
@@ -298,7 +291,13 @@ class Buyer {
 
     public:
         Buyer() {
-
+            numberOfProducts = 0;
+            maxNumberOfProducts = 10;
+            products = new Product[maxNumberOfProducts];
+            if(products == NULL) {
+                cout << "Memory allocation error. products was not properly initialized.";
+                exit(1);
+            }
         }
 
         Buyer(const char name[]) {
@@ -453,6 +452,12 @@ class Buyer {
             return this->numberOfProducts < buyer.numberOfProducts;
         }
 
+        void setName(const char name[]) {
+            if (strlen(name) > 0) {
+                strcpy(this->name, name);
+            }
+        }
+
         Buyer& operator--() {
             removeLastProduct();
             return *this;            
@@ -482,9 +487,10 @@ class Buyer {
 
         friend istream& operator>>(istream& in, Buyer& buyer) {
             cout << "Introduce the name of the buyer: ";
-            in>>buyer.name;
+            fflush(stdin);
+            gets(buyer.name);
             cout << "Introduce the budget: ";
-            in>>buyer.budget;
+            in >> buyer.budget;
             
             return in;            
         }
@@ -500,7 +506,7 @@ class EmployedBuyer : public Buyer {
         int discountForShopping;
     
     public: 
-        EmployedBuyer() {
+        EmployedBuyer() : Buyer() {
 
         }
 
@@ -570,7 +576,8 @@ class EmployedBuyer : public Buyer {
 
         friend istream& operator>>(istream& in, EmployedBuyer& employedBuyer) {
             cout << "Introduce the name of the employed buyer: ";
-            in >> employedBuyer.name;
+            fflush(stdin);
+            gets(employedBuyer.name);
             cout << "Introduce the budget: ";
             in >> employedBuyer.budget;
             cout << "Introduce the discount for shopping: ";
@@ -605,6 +612,15 @@ class CashRegister {
         }
 
     public:
+        CashRegister() {   
+            cashRegisterCapacity = 5;
+            buyers = new Buyer[cashRegisterCapacity];
+            if (buyers == NULL) {
+                cout << "Memory allocation error. buyers was not properly initialized." << endl;
+                exit(1);
+            }
+        }
+
         CashRegister(const char name[]) {
             strcpy(this->name, name);
             isActive = 1;
@@ -695,6 +711,70 @@ class CashRegister {
             --currentServedBuyers;
         }
 
+        operator int(){
+            return currentServedBuyers;
+        }
+        
+        Buyer operator[](int index){
+            if (index >= currentServedBuyers) {
+                cout << "Index is out of bound." << endl;
+                exit(1);
+            }
+
+            return buyers[index];
+        }
+
+        bool operator==(CashRegister& cashRegister){
+            if (cashRegisterCapacity == cashRegister.cashRegisterCapacity)
+                return true;
+            else return false;
+        }
+
+        bool operator>(const CashRegister& cashRegister){
+            return (strcmp(name, cashRegister.name) > 0);
+        }
+
+        bool operator!(){
+
+            if (currentServedBuyers == 0) {
+                return 0;
+            }
+            
+            currentServedBuyers = 0;
+            delete[] buyers;
+            buyers = NULL;
+            
+            if(buyers != NULL){
+                cout << "The buyers could not be deleated." <<endl;
+                return 0; 
+            }
+          
+            cout << "The buyers deleted."<<endl;
+            return 1;
+
+        }
+
+        CashRegister& operator+(int capacity){
+            this->cashRegisterCapacity += capacity;
+            return *this;
+        }
+
+        CashRegister& operator+=(int capacity){
+            this->cashRegisterCapacity += capacity;
+            return *this;
+        }
+        
+        CashRegister& operator--(){
+            removeBuyer();
+            return *this;
+        }
+
+        CashRegister operator--(int){
+            CashRegister cashRegister = *this;
+            --(*this);
+            return cashRegister;
+        }
+
         bool getIsActive() {
             return isActive;
         }
@@ -723,172 +803,288 @@ class CashRegister {
             return out;
         }
 
+         friend istream& operator>>(istream& in, CashRegister& cashRegister) {
+            cout << "Is the cash register active? ";
+            in >> cashRegister.isActive;
+            cout << "Introduce the name of the cash register: ";
+            fflush(stdin);
+            gets(cashRegister.name);
+            cout << "Introduce the capacity of the cash register: ";
+            in >> cashRegister.cashRegisterCapacity; 
+            
+            return in;            
+        }
+
         ~CashRegister() {
             delete[] buyers;
         }
 };
 
+class Provider {
+    private:
+        char name[30];
+        Product *products = NULL;
+        int numberOfProducts;
+        int capacity;
+
+        void performCopying(const Provider& provider) {
+            strcpy(this->name, provider.name);
+            this->capacity = provider.capacity;
+            this->numberOfProducts = provider.numberOfProducts;
+            products = new Product[this->capacity];
+            if (products == NULL) {
+                cout << "Memory allocation error. products in Provider class was not properly allocated.";
+                exit(1);
+            }
+
+            for (int i = 0; i < this->numberOfProducts; ++i) {
+                this->products[i] = provider.products[i];
+            }
+        }
+
+        void resizeProducts(int capacity) {
+            Product *temp = products;
+            products = new Product[capacity];
+            if (products == NULL) {
+                cout << "Memory allocation error. products in Provider class was not properly allocated.";
+                exit(1);
+            }
+
+            for (int i = 0; i < numberOfProducts; ++i) {
+                products[i] = temp[i];
+            }
+
+            this->capacity = capacity;
+        }
+    
+    public:
+        Provider() {
+            capacity = 10;
+            products = new Product[capacity];
+            numberOfProducts = 0;
+            if (products == NULL) {
+                cout << "Memory allocation error. products in Provider class was not properly allocated.";
+                exit(1);
+            }
+        }
+
+        Provider(
+            const char name[]
+        ) {
+            strcpy(this->name, name);
+            capacity = 10;
+            products = new Product[capacity];
+            numberOfProducts = 0;
+            if (products == NULL) {
+                cout << "Memory allocation error. products in Provider class was not properly allocated.";
+                exit(1);
+            }
+        }
+
+        Provider (
+            const char name[],
+            int capacity
+        ) {
+            strcpy(this->name, name);
+            this->capacity = capacity;
+            numberOfProducts = 0;
+            products = new Product[this->capacity];
+            if (products == NULL) {
+                cout << "Memory allocation error. products in Provider class was not properly allocated.";
+                exit(1);
+            }
+        }
+
+        Provider(
+            const Provider& provider
+        ) {
+            performCopying(provider);
+        }
+
+        Provider& operator=(const Provider& provider) {
+            performCopying(provider);
+            return *this;
+        }
+
+        Product& createProduct(
+            const char name[],
+            double price
+        ) {
+            for (int i = 0; i < numberOfProducts; ++i) {
+                if (strcmp(products[i].getName(), name) == 0 && products[i].getPrice() == price) {
+                    cout << "This product already exists." << endl;
+                    return products[i];
+                }
+            }
+
+            Product product(name, price);
+            if(numberOfProducts == capacity) {
+                resizeProducts(capacity * 2);
+            }
+
+            products[numberOfProducts] = product;
+            ++numberOfProducts;
+
+            return products[numberOfProducts - 1];
+        }
+
+        
+
+        Provider& operator++(){
+            resizeProducts(capacity * 2);
+            return *this;
+        }
+
+        Provider operator++(int){
+            Provider provider = *this;
+            ++(*this);
+            return provider;
+        }
+
+        bool operator==(const Provider& provider) {
+            if (strcmp(provider.name, this->name) != 0 || provider.numberOfProducts != this->numberOfProducts) {
+                return false;
+            }
+
+            for (int i = 0; i < this->numberOfProducts; ++i) {
+                if (this->products[i] != provider.products[i]) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        void setName(const char name[]) {
+            if (strlen(name) == 0) {
+                cout << "You have given an empty name for Provider." << endl;
+                exit(1);
+            }
+
+            strcpy(this->name, name);
+        }
+
+        void setCapacity(int capacity) {
+            resizeProducts(capacity);
+        }
+
+        char *getName() {
+            return this->name;
+        }
+
+        int getCapacity() {
+            return this->capacity;
+        }
+
+        bool operator>(const Provider& provider) {
+            return this->numberOfProducts > provider.numberOfProducts;
+        }
+
+        bool operator<(const Provider& provider) {
+            return this->numberOfProducts < provider.numberOfProducts;
+        }
+
+        Product *getProducts() {
+            return this->products;
+        }
+
+        Product operator[](int index) {
+            if (index >= numberOfProducts) {
+                cout << "Index is out of bound." << endl;
+                exit(1);
+            }
+
+            return products[index];
+        }
+
+        operator int() {
+            return capacity;
+        }
+
+        void operator!() {
+            delete[] products;
+            products = NULL;
+            capacity = 10;
+            products = new Product[capacity];
+            numberOfProducts = 0;
+            if (products == NULL) {
+                cout << "Memory allocation error. products in Provider class was not properly allocated.";
+                exit(1);
+            }
+        }
+
+        void removeProduct(Product product) {
+            for (int i = 0; i < numberOfProducts; ++i) {
+                if (products[i] == product) {
+                    for (int j = i; j < numberOfProducts - 1; ++j) {
+                        products[i] = products[i + 1];
+                    }
+                    --numberOfProducts;
+                }
+            }
+        }
+
+        friend ostream &operator<<(ostream& out, const Provider& provider) {
+            out << "Provider's name: " << provider.name << endl;
+            out << "Provider's products: " << provider.numberOfProducts << endl;
+            out << "Provider's capacity: " << provider.capacity << endl;
+
+            for (int i = 0; i < provider.numberOfProducts; ++i) {
+                out << provider.products[i] << endl;
+            }
+
+            return out;
+        }
+
+        friend istream& operator>>(istream& in, Provider& provider) {
+            cout << "Enter the provider's name: ";
+            fflush(stdin);
+            gets(provider.name);
+            cout << "Introduce the provider's capacity: ";
+            in >> provider.capacity;
+            provider.resizeProducts(provider.capacity);
+            
+            return in;            
+        }
+
+        ~Provider() {
+            delete[] products;
+        }
+
+};
+
 int Product::instances = 0;
 
 int main(void) {
-    int promotionsProduct1[] = {0, 10, 5, 10, 0, 0, 0};
-    Product product1("Milka Oreo", 4.99, promotionsProduct1);
-    // cout << product1 << endl;
+    // Create some promotions
+    int promotions1[] = {0, 10, 0, 10, 0, 10, 0};
+    int promotions2[] = {0, 0, 0, 5, 5, 0, 0};
 
-    int promotionsProduct2[] = {0, 10, 20, 0, 8, 0, 40};
-    Product product2;
-    product2.setPrice(9.99);
-    product2.setName("Nutella");
-    product2.setPromotions(promotionsProduct2, 7);
-    // cout << product2 << endl;
+    // First Provider with Nefis name and all its products
+    Provider nefisProvider("Nefis");
+    Product product1(nefisProvider.createProduct("Bounty", 2.99));
+    Product product2(nefisProvider.createProduct("Twix", 2.50));
+    Product product3(nefisProvider.createProduct("Mars", 2.10));
+    nefisProvider.removeProduct(product2);
 
-    Product product3(product2);
-    product3 = product3 + 5.00;
-    // cout << product3 << endl;
+    product2.setPromotions(promotions1, 7);
 
-    // Product product4;
-    // product4 = product1;
-    // product4 += 5.00;
-    // cout << product4 << endl;
+    Buyer buyer1("Henri Coanda");
+    buyer1.setBudget(100.00);
+    buyer1.addProduct(product1, 3);
+    buyer1.addProduct(product2, 3);
+    buyer1.pay();
 
-    // Product product5;
-    // // cin >> product5;
-    // // cout << product5 << endl;
-    
-    // cout << "The discount for the first product on WEDNESDAY is: " << product1[2] << "%" << endl;
-    
-    // cout << endl << "The new price for the third product: \n";
-    // product4 = product3--;
-    // cout << product3 << endl;
-    // cout << product4 << endl;
-    
-    // cout << endl << "The new prices for the third and fourth product: \n";
-    // product4 = --product3;
-    // cout << product3 << endl;
-    // cout << product4 << endl;
-    
-    // cout << endl << "The price for the first product: " << double(product1) << endl;
+    Buyer buyer2("Aurel Vlaicu", 200.00);
+    buyer2.addProduct(product3, 2);
+    buyer2.addProduct(product3, 2);
+    buyer2.addProduct(product3, 2);
+    --buyer2;
+    buyer2.pay();
 
-    // if(!product2)
-    //   cout << endl << "There are disscounts for the second product" << endl;
-    // else cout << endl << "There are NO disscounts for the second product" << endl;
-
-    // if(product1 > product2)
-    //     cout << endl << "The price of the first product is bigger than the price of the second product" << endl;
-    // else cout << endl << "The price of the first product is NOT bigger than the price of the second product" << endl;
-    
-    
-    // if(product1 == product2)
-    //     cout << endl << "The first product has the same number of days of disscounts as the second product" << endl;
-    // else cout << endl << "The first product has different number of days of disscounts " << endl;
-    // int *promo = product1.getPromotions();
-    // for(int i = 0; i < 7; ++i) {
-    //     cout << promo[i] << " ";
-    // }
-
-    // int promotionsProduct2[] = {0, -10, 5, 10, 0, 0, 0};
-    // product1.setPromotions(promotionsProduct2, 7);
-    int day = 1;
-    Buyer buyer("Madalina Demian", 200.23);
-    buyer.addProduct(product1, day);
-    buyer.addProduct(product2, day);
-    buyer.addProduct(product3, day);
-    cout << buyer << endl;
-    // cout << buyer.getNumberOfProducts() << endl;
-    // cout << buyer.getBudget() << endl;
-    // cout << buyer.getName() << endl;
-    // Product *products = buyer.getProducts();
-    // for(int i = 0; i < buyer.getNumberOfProducts(); ++i) {
-    //     cout << products[i].getName() << endl;
-    // }
-
-    cout << !buyer << endl;
-    cout << buyer << endl;
-    buyer.pay();
-    cout << buyer << endl;
-    buyer.addProduct(product1, day);
-    buyer.addProduct(product2, day);
-    cout << buyer << endl;
-    //buyer.pay();
- 
-    cout << "New budget: " << buyer.getBudget() + 100 <<endl;
-    Buyer buyer2("Ana Toma", 544.8);
-    cout << buyer2 << endl;
-
-    // if(buyer == buyer2) 
-    //     cout << "The  buyer 1 and 2 have the same budget." << endl;
-    // else cout << "The buyer 1 and 2 have different budgets." << endl;
-    buyer2.addProduct(product1, day);
-    buyer2.addProduct(product2, day);
-    cout << (double)buyer2 << endl;
-    
-    // if(buyer < buyer2)
-    //     cout << "The buyer 1 has less products than the buyer 2." << endl;
-    // else cout << "The buyer 1 has more products than the buyer 2." << endl;
-   // cout << "----------------------------" << endl;
-    Buyer buyer3 = buyer2--;
-    cout << buyer2 << endl;
-    cout << buyer3 << endl;
-    cout << buyer3[1] << endl;
-
-    cout << "------------------------" << endl;
-    EmployedBuyer employedBuyer1("Victor Nani", 1000.00, 10);
-    cout << employedBuyer1 << endl;
-    
-    int p1[] = {10, 0, 10, 0, 10, 0, 10};
-    Product pr1("Mars", 10, p1);
-
-    int p2[] = {0, 0, 5, 0, 0, 0, 0};
-    Product pr2("Choco Duo", 20, p2);
-
-    employedBuyer1.addProduct(pr1, 0);
-    employedBuyer1.addProduct(pr2, 2);
-    //employedBuyer1.pay();
-    EmployedBuyer employedBuyer2(employedBuyer1);
-    EmployedBuyer employedBuyer3;
-    employedBuyer3 = employedBuyer1;
-
-    cout << employedBuyer1 << endl;
-    cout << employedBuyer2 << endl;
-    cout << employedBuyer3 << endl;
-
-    EmployedBuyer employedBuyer4 = employedBuyer3--;
-    cout << employedBuyer3 << endl;
-    cout << employedBuyer4 << endl;
-
-    cout << employedBuyer4[0] << endl;
-
-    cout << product1.hasDiscount() << endl;
-
-    Buyer b("Aurel Vlaicu");
-    b.setBudget(10.50);
-    cout << b << endl;
-
-    EmployedBuyer eb("Henri Coanda");
-    eb.setBudget(11.11);
-    cout << eb << endl;
-
-    Product p("Twix", 50.00);
-    cout << p << endl;
-    int pr[] = {1, 2, 3, 4, 5, 6, 7};
-    cout << p.hasDiscount() << endl;
-    cout << p.calculatePrice(5) << endl;
-
-    // CashRegister c1("Cash Register 1");
-    CashRegister c2("Cash Register 2", 3);
-    // c2.setCashRegisterCapacity(12);
-    // c2.addBuyer(buyer);
-    // cout << c2 << endl;
-    // CashRegister c3(c2);
-    // cout << c3 << endl;
-    // CashRegister c4("asdasd");
-    // c4 = c3;
-    // cout << c3 << endl;
-    
-    c2.addBuyer(buyer);
-    c2.addBuyer(buyer2);
-    c2.addBuyer(buyer3);
-    c2.addBuyer(buyer);
-    cout << c2 << endl;
-
+    EmployedBuyer employedBuyer1("Ady Mutu", 90.00, 10);
+    employedBuyer1.addProduct(product1, 3);
+    employedBuyer1.addProduct(product2, 3);
+    employedBuyer1.addProduct(product3, 3);
+    employedBuyer1.pay();
 }
