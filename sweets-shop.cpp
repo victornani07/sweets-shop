@@ -4,6 +4,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <set>
 
 using namespace std;
 
@@ -1546,6 +1547,14 @@ class ProviderBinaryFileWriter : public BinaryFileWriter {
                 binaryFile.write((char*)&x, sizeof(int));
             }
         }
+
+        void writeToFile(ofstream& binaryFile, Provider providers[], int numberOfProviders) {
+            for (int i = 0; i < numberOfProviders; ++i) {
+                binaryFile.write(providers[i].getName(), sizeof(char) * strlen(providers[i].getName()));
+                int x = providers[i].getCapacity();
+                binaryFile.write((char*)&x, sizeof(int));
+            }
+        }
 };
 
 class ProductBinaryFileWriter : public BinaryFileWriter {
@@ -1562,6 +1571,15 @@ class ProductBinaryFileWriter : public BinaryFileWriter {
                 binaryFile.write((char *)products[i].getPromotions(), sizeof(int) * 7);
             }
         }
+
+        void writeToFile(ofstream& binaryFile, Product products[], int numberOfProducts) {
+            for (int i = 0; i < numberOfProducts; ++i) {
+                binaryFile.write(products[i].getName(), sizeof(char) * strlen(products[i].getName()));
+                double x = products[i].getPrice();
+                binaryFile.write((char*)&x, sizeof(double));
+                binaryFile.write((char *)products[i].getPromotions(), sizeof(int) * 7);
+            }
+        }
 };
 
 class BuyerBinaryFileWriter : public BinaryFileWriter {
@@ -1571,6 +1589,16 @@ class BuyerBinaryFileWriter : public BinaryFileWriter {
             int numberOfBuyers = 0;
             Buyer buyers[100];
             textFileProcessor.readBuyerFromFile(inputFile, buyers, &numberOfBuyers);
+            for (int i = 0; i < numberOfBuyers; ++i) {
+                binaryFile.write(buyers[i].getName(), sizeof(char) * strlen(buyers[i].getName()));
+                double x = buyers[i].getBudget();
+                binaryFile.write((char*)&x, sizeof(double));
+                int y = buyers[i].getMaxNumberOfProducts();
+                binaryFile.write((char *)&y, sizeof(int));
+            }
+        }
+
+        void writeToFile(ofstream& binaryFile, Buyer buyers[], int numberOfBuyers) {
             for (int i = 0; i < numberOfBuyers; ++i) {
                 binaryFile.write(buyers[i].getName(), sizeof(char) * strlen(buyers[i].getName()));
                 double x = buyers[i].getBudget();
@@ -1598,6 +1626,18 @@ class EmployedBuyerBinaryFileWriter : public BinaryFileWriter {
                 binaryFile.write((char *)&z, sizeof(int));
             }
         }
+
+        void writeToFile(ofstream& binaryFile, EmployedBuyer employedBuyers[], int numberOfEmployedBuyers) {
+            for (int i = 0; i < numberOfEmployedBuyers; ++i) {
+                binaryFile.write(employedBuyers[i].getName(), sizeof(char) * strlen(employedBuyers[i].getName()));
+                double x = employedBuyers[i].getBudget();
+                binaryFile.write((char*)&x, sizeof(double));
+                int y = employedBuyers[i].getMaxNumberOfProducts();
+                binaryFile.write((char *)&y, sizeof(int));
+                int z = employedBuyers[i].getDiscountForShopping();
+                binaryFile.write((char *)&z, sizeof(int));
+            }
+        }
 };
 
 class CashRegisterBinaryFileWriter : public BinaryFileWriter {
@@ -1607,6 +1647,16 @@ class CashRegisterBinaryFileWriter : public BinaryFileWriter {
             int numberOfCashRegisters = 0;
             CashRegister cashRegisters[100];
             textFileProcessor.readCashRegisterFromFile(inputFile, cashRegisters, &numberOfCashRegisters);
+            for (int i = 0; i < numberOfCashRegisters; ++i) {
+                binaryFile.write(cashRegisters[i].getName(), sizeof(char) * strlen(cashRegisters[i].getName()));
+                int x = cashRegisters[i].getCashRegisterCapacity();
+                binaryFile.write((char*)&x, sizeof(int));
+                int y = cashRegisters[i].getIsActive();
+                binaryFile.write((char*)&y, sizeof(int));
+            }
+        }
+
+        void writeToFile(ofstream& binaryFile, CashRegister cashRegisters[], int numberOfCashRegisters) {
             for (int i = 0; i < numberOfCashRegisters; ++i) {
                 binaryFile.write(cashRegisters[i].getName(), sizeof(char) * strlen(cashRegisters[i].getName()));
                 int x = cashRegisters[i].getCashRegisterCapacity();
@@ -1717,80 +1767,94 @@ class ProductReportGenerator : public ReportGenerator {
 };
 
 int main(int argc, char** argv) {
-    // argv[1] - the file containing the Product attributes
-    ifstream productFile(argv[1]);
-    ifstream buyerFile(argv[2]);
-    ifstream employedBuyerFile(argv[2]);
-    ifstream providerFile(argv[3]);
-    ifstream cashRegisterFile(argv[4]);
-    Product products[100];
-    Buyer buyers[100];
-    EmployedBuyer employedBuyers[100];
-    Provider providers[100];
-    CashRegister cashRegisters[100];
+    ProviderBinaryFileWriter *providerBinaryFileWriter = new ProviderBinaryFileWriter;
+    ProductBinaryFileWriter *productsBinaryFileWriter = new ProductBinaryFileWriter;
+    BuyerBinaryFileWriter *buyerBinaryFileWriter = new BuyerBinaryFileWriter;
+    EmployedBuyerBinaryFileWriter *employedBuyerBinaryFileWriter = new EmployedBuyerBinaryFileWriter;
+    CashRegisterBinaryFileWriter *cashRegisterBinaryFileWriter = new CashRegisterBinaryFileWriter;
+
     int numberOfProducts = 0;
     int numberOfBuyers = 0;
     int numberOfEmployedBuyers = 0;
     int numberOfProviders = 0;
     int numberOfCashRegisters = 0;
-    TextFileProcessor textFileProcessor;
-    textFileProcessor.readProductFromFile(productFile, products, &numberOfProducts);
-    textFileProcessor.readBuyerFromFile(buyerFile, buyers, &numberOfBuyers);
-    textFileProcessor.readEmployedBuyerFromFile(employedBuyerFile, employedBuyers, &numberOfEmployedBuyers);
-    textFileProcessor.readProviderFromFile(providerFile, providers, &numberOfProviders);
-    textFileProcessor.readCashRegisterFromFile(cashRegisterFile, cashRegisters, &numberOfCashRegisters);
-    ofstream binaryFile;
-    binaryFile.open("data.dat", ios::binary | ios::out);
-    productFile.clear();
-    productFile.seekg(0);
-    buyerFile.clear();
-    buyerFile.seekg(0);
-    employedBuyerFile.clear();
-    employedBuyerFile.seekg(0);
-    providerFile.clear();
-    providerFile.seekg(0);
-    cashRegisterFile.clear();
-    cashRegisterFile.seekg(0);
-    BinaryFileWriter *providerBinaryFileWriter = new ProviderBinaryFileWriter;
-    BinaryFileWriter *productsBinaryFileWriter = new ProductBinaryFileWriter;
-    BinaryFileWriter *buyerBinaryFileWriter = new BuyerBinaryFileWriter;
-    BinaryFileWriter *employedBuyerBinaryFileWriter = new EmployedBuyerBinaryFileWriter;
-    BinaryFileWriter *cashRegisterBinaryFileWriter = new CashRegisterBinaryFileWriter;
-    providerBinaryFileWriter->writeToFile(binaryFile, providerFile);
-    productsBinaryFileWriter->writeToFile(binaryFile, productFile);
-    buyerBinaryFileWriter->writeToFile(binaryFile, buyerFile);
-    employedBuyerBinaryFileWriter->writeToFile(binaryFile, employedBuyerFile);
-    cashRegisterBinaryFileWriter->writeToFile(binaryFile, cashRegisterFile);
-    binaryFile.close();
-    productFile.close();
-    buyerFile.close();
-    employedBuyerFile.close();
-    providerFile.close();
-    cashRegisterFile.close();
 
-    for (int i = 0; i < numberOfProducts; ++i) {
-        cout << products[i] << endl;
-    }
+    Product products[100];
+    Buyer buyers[100];
+    EmployedBuyer employedBuyers[100];
+    Provider providers[100];
+    CashRegister cashRegisters[100];
 
-    for (int i = 0; i < numberOfBuyers; ++i) {
-        cout << buyers[i] << endl;
-    }
+    if (argc > 1) {
+        // argv[1] - the file containing the Product attributes
+        ifstream productFile(argv[1]);
+        // argv[2] - the file containing the Buyer attributes
+        ifstream buyerFile(argv[2]);
+        // argv[2] - the file containing the Employed Buyer attributes
+        ifstream employedBuyerFile(argv[2]);
+        // argv[3] - the file containing the Provider attributes
+        ifstream providerFile(argv[3]);
+        // argv[4] - the file containing the Cash Register attributes
+        ifstream cashRegisterFile(argv[4]);
+        
+        TextFileProcessor textFileProcessor;
+        textFileProcessor.readProductFromFile(productFile, products, &numberOfProducts);
+        textFileProcessor.readBuyerFromFile(buyerFile, buyers, &numberOfBuyers);
+        textFileProcessor.readEmployedBuyerFromFile(employedBuyerFile, employedBuyers, &numberOfEmployedBuyers);
+        textFileProcessor.readProviderFromFile(providerFile, providers, &numberOfProviders);
+        textFileProcessor.readCashRegisterFromFile(cashRegisterFile, cashRegisters, &numberOfCashRegisters);
+        ofstream binaryFile;
+        // argv[5] - the output binary file where all the data is persisted
+        binaryFile.open(argv[5], ios::binary | ios::out);
+        productFile.clear();
+        productFile.seekg(0);
+        buyerFile.clear();
+        buyerFile.seekg(0);
+        employedBuyerFile.clear();
+        employedBuyerFile.seekg(0);
+        providerFile.clear();
+        providerFile.seekg(0);
+        cashRegisterFile.clear();
+        cashRegisterFile.seekg(0);
+        
+        providerBinaryFileWriter->writeToFile(binaryFile, providerFile);
+        productsBinaryFileWriter->writeToFile(binaryFile, productFile);
+        buyerBinaryFileWriter->writeToFile(binaryFile, buyerFile);
+        employedBuyerBinaryFileWriter->writeToFile(binaryFile, employedBuyerFile);
+        cashRegisterBinaryFileWriter->writeToFile(binaryFile, cashRegisterFile);
+        binaryFile.close();
+        productFile.close();
+        buyerFile.close();
+        employedBuyerFile.close();
+        providerFile.close();
+        cashRegisterFile.close();
 
-    for (int i = 0; i < numberOfEmployedBuyers; ++i) {
-        cout << employedBuyers[i] << endl;
-    }
+        for (int i = 0; i < numberOfProducts; ++i) {
+            cout << products[i] << endl;
+        }
 
-    for (int i = 0; i < numberOfProviders; ++i) {
-        cout << providers[i] << endl;
-    }
+        for (int i = 0; i < numberOfBuyers; ++i) {
+            cout << buyers[i] << endl;
+        }
 
-    for (int i = 0; i < numberOfCashRegisters; ++i) {
-        cout << cashRegisters[i] << endl;
-    }
+        for (int i = 0; i < numberOfEmployedBuyers; ++i) {
+            cout << employedBuyers[i] << endl;
+        }
+
+        for (int i = 0; i < numberOfProviders; ++i) {
+            cout << providers[i] << endl;
+        }
+
+        for (int i = 0; i < numberOfCashRegisters; ++i) {
+            cout << cashRegisters[i] << endl;
+        }
+
+        return 0;
+    } 
 
     int promo[] = { 0, 5, 0, 10, 0, 0, 0};
-    Product  product1 ("Oreo", 7, promo);
-    cout << product1 << endl;
+    Product product1 ("Oreo", 7, promo);
+    products[numberOfProducts++] = product1;
     Product product2 = product1;
     cout << product2 << endl;
 
@@ -1798,17 +1862,20 @@ int main(int argc, char** argv) {
     product2.setName("Milka");
     product2.setPrice(10);
     product2.setPromotions(promo2, 7);
-    cout << product2 << endl;
+    products[numberOfProducts++] = product2;
+    cout << products[1] << endl;
 
     Product product3(product2);
     product3 = product3 + 4.00;
     product3.setName("Nutella");
     cout << product3 << endl;
+    products[numberOfProducts++] = product3;
 
     Buyer buyer1("Madalina Demian", 200.00, 10);
     buyer1.addProduct(product1, 1);
     buyer1.addProduct(product2, 1);
     buyer1.addProduct(product3, 1);
+    buyers[numberOfBuyers++] = buyer1;
     cout << buyer1 << endl;
 
     cout << product1.getName() << endl;
@@ -1825,7 +1892,7 @@ int main(int argc, char** argv) {
     buyer1.addProduct(product1, 1);
     buyer1.addProduct(product2, 1);
     buyer1.addProduct(product3, 1);
-    //buyer1.pay();
+    buyer1.pay();
     cout << buyer1 << endl;
 
     cout << "New budget: " << buyer1.getBudget() + 100 <<endl;
@@ -1834,35 +1901,40 @@ int main(int argc, char** argv) {
     cout << buyer2 << endl;
     buyer2.addProduct(product1, 1);
     buyer2.addProduct(product2, 1);
+    buyers[numberOfBuyers++] = buyer2;
     cout << (double)buyer2 << endl;
    
     EmployedBuyer employee1("Andrei Anuta", 1000.00, 10, 15);
+    employedBuyers[numberOfEmployedBuyers++] = employee1;
     
     int promo3[] = {10, 0, 0, 10, 5, 0, 0};
     Product product5("Mars", 20, promo3);
     int promo4[] = {0, 0, 5, 0, 0, 0, 0};
     Product product6("Choco duo", 5, promo4);
+    products[numberOfProducts++] = product5;
+    products[numberOfProducts++] = product6;
 
     employee1.addProduct(product5, 0);
     employee1.addProduct(product6, 1);
     cout << employee1 << endl;
-    //employee1.pay();
-    //cout << employee1 << endl;
+    employee1.pay();
+    cout << employee1 << endl;
 
     EmployedBuyer employee2(employee1);
     employee2.setName("Ion Vlaicu");
     cout << employee2;
     
-    EmployedBuyer employee3 = --employee1;
-    employee3.setName("Marin Tudor");
-    cout << employee1 << endl;
-    cout << employee3 << endl;
+    // -- not properly working
+    // EmployedBuyer employee3 = employee1;
+    // employee3.setName("Marin Tudor");
+    // cout << employee1 << endl;
+    // cout << employee3 << endl;
     
-    cout << employee3[0] << endl;
+    // cout << employee3[0] << endl;
 
-    employee3.setBudget(400.50);
-    cout << employee3 << endl;
-    employee3.pay();
+    // employee3.setBudget(400.50);
+    // cout << employee3 << endl;
+    // employee3.pay();
 
     Product product7("Snickers", 6.5, promo3);
     cout << product7.hasDiscount() << endl;
@@ -1871,6 +1943,7 @@ int main(int argc, char** argv) {
 
     CashRegister cashRegister1("Cash register 1", 4);
     cashRegister1.addBuyer(buyer1);
+    cashRegisters[numberOfCashRegisters++] = cashRegister1;
     cout << cashRegister1 << endl;
     
     CashRegister cashRegister2(cashRegister1);
@@ -1879,8 +1952,8 @@ int main(int argc, char** argv) {
     cashRegister2.addBuyer(buyer2);
     cout << cashRegister2 << endl;
 
-    // !cashRegister1;
-    // cout << cashRegister1 << endl;
+    //!cashRegister1;
+    cout << cashRegister1 << endl;
   
     if(cashRegister1 == cashRegister2)
        cout << "The cash register 1 has the same capacity as the cash register 2." << endl;
@@ -1898,10 +1971,10 @@ int main(int argc, char** argv) {
     cashRegister2 += 2;
     cout << cashRegister2 << endl;
 
-    // !cashRegister2;
-    // cout << cashRegister2 << endl;
+    !cashRegister2;
+    cout << cashRegister2 << endl;
 
-    cout << cashRegister2[1] << endl;
+   // cout << cashRegister2[1] << endl;
 
     cout << (int)cashRegister1 << endl << endl;
 
@@ -1910,6 +1983,7 @@ int main(int argc, char** argv) {
     Product product9(provider1.createProduct("Twix", 2.50));
     Product product10(provider1.createProduct("Mars", 2.10));
     provider1.removeProduct(product9);
+    providers[numberOfProviders++] = provider1;
 
     cout << provider1 << endl;
     product10.setPromotions(promo3, 7);
@@ -1930,10 +2004,10 @@ int main(int argc, char** argv) {
     buyer5.pay();
     cout << endl;
 
-    // !provider1;
-    // cout << provider1 << endl;
+    !provider1;
+    cout << provider1 << endl;
 
-    cout << provider1[1] << endl;
+   // cout << provider1[1] << endl;
 
     Provider provider2(provider1);
     provider2.setName("Nefis");
@@ -1951,15 +2025,15 @@ int main(int argc, char** argv) {
         cout << "The provider 1 has less products than the second provider." << endl;
     else cout << "The provider 1 has more products than the second provider." << endl;
      
-    cout  << provider1[1] << endl;
+    //cout  << provider1[1] << endl;
 
-    // !provider1;
-    // cout << provider1 << endl;
+    !provider1;
+    cout << provider1 << endl;
 
     Provider provider3;
     provider3.setName("Bucuria");
-    // cin >> provider3;
-    cout << provider3 << endl;
+    //cin >> provider3;
+    //cout << provider3 << endl;
 
     cout << product11 << endl;
     product11.setPromotions(promo, 7);
@@ -1984,7 +2058,9 @@ int main(int argc, char** argv) {
     shop.placeProduct("Madalina Demian", _product1, 2);
     shop.placeProduct("Madalina Demian", _product2, 2);
     shop.placeProduct("Ana Toma", _product3, 2);
+    
     shop.goToCashRegister(_buyer1);
+    
     shop.goToCashRegister(_buyer2);
 
     ofstream shopRefortFile("shop-report.rpt");
@@ -2003,9 +2079,20 @@ int main(int argc, char** argv) {
     ReportGenerator *productsReportGenerator = new ProductReportGenerator(products, numberOfProducts);
     productsReportGenerator->generateReport(productsReportFile);
     productsReportFile.close();
+    
     // shop.pay(0);
+    // cout << "123123123123" << endl;
     // shop.pay(1);
     // Shop shopp;
     // cin >> shopp;
     // cout<<shopp << endl;
+    const char *binaryFileName = "data.dat";
+    ofstream binaryFile;
+    binaryFile.open(binaryFileName, ios::binary | ios::out);
+    productsBinaryFileWriter->writeToFile(binaryFile, products, numberOfProducts);
+    buyerBinaryFileWriter->writeToFile(binaryFile, buyers, numberOfBuyers);
+    employedBuyerBinaryFileWriter->writeToFile(binaryFile, employedBuyers, numberOfEmployedBuyers);
+    cashRegisterBinaryFileWriter->writeToFile(binaryFile, cashRegisters, numberOfCashRegisters);
+    providerBinaryFileWriter->writeToFile(binaryFile, providers, numberOfProviders);
+    binaryFile.close();
 }
